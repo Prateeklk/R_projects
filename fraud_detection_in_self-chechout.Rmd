@@ -1,0 +1,271 @@
+---
+title: "Prateek_stat_project"
+output: html_document
+date: "2024-05-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+
+
+
+## Load the dataset
+
+data <- read.csv("C:/Users/prate/OneDrive/Desktop/dataset.csv")
+
+## DISPLAY THE DATASET AND SUMMARY 
+
+head(data)
+
+
+## DATA CLEANING
+
+# Check for missing values in the entire dataset
+any_na <- any(is.na(data))
+cat("Are there any missing values in the dataset?", any_na, "\n")
+
+# Count missing values in each column
+na_per_column <- colSums(is.na(data))
+print(na_per_column)
+
+# Count missing values in each row
+na_per_row <- rowSums(is.na(data))
+print(na_per_row)
+
+
+# Drop rows with missing values
+data_without_na <- na.omit(data)
+
+# Display the first few rows of the cleaned dataset
+head(data_without_na)
+
+# after deleting all the none value in the dataset, checking if any na values are present in the dataset
+any_na <- any(is.na(data))
+print(any_na)
+
+
+## DATA EXPLORING
+
+summary(data)
+
+# Load necessary libraries
+library(ggplot2)
+
+# 1. Bar plot for trustLevel
+ggplot(data, aes(x = trustLevel, fill = factor(fraud))) +
+  geom_bar(position = "dodge", stat = "count") +
+  labs(x = "Trust Level", y = "Count", fill = "Fraud") +
+  ggtitle("Distribution of Trust Level by Fraud Status")
+
+# 2. Histogram for totalScanTimeInSeconds
+ggplot(data, aes(x = totalScanTimeInSeconds)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 20) +
+  labs(x = "Total Scan Time (Seconds)", y = "Frequency") +
+  ggtitle("Distribution of Total Scan Time")
+
+# 3. Box plot for grandTotal
+ggplot(data, aes(x = factor(fraud), y = grandTotal, fill = factor(fraud))) +
+  geom_boxplot() +
+  labs(x = "Fraud", y = "Grand Total") +
+  ggtitle("Distribution of Grand Total by Fraud Status")
+
+# 4. Scatter plot for lineItemVoids vs. scansWithoutRegistration
+ggplot(data, aes(x = lineItemVoids, y = scansWithoutRegistration, color = factor(fraud))) +
+  geom_point() +
+  labs(x = "Line Item Voids", y = "Scans Without Registration", color = "Fraud") +
+  ggtitle("Relationship between Line Item Voids and Scans Without Registration")
+
+# 5. Stacked bar plot for quantityModifications vs. fraud
+ggplot(data, aes(x = factor(quantityModifications), fill = factor(fraud))) +
+  geom_bar(position = "stack") +
+  labs(x = "Quantity Modifications", y = "Count", fill = "Fraud") +
+  ggtitle("Distribution of Quantity Modifications by Fraud Status")
+
+
+
+## SPLITTING THE DATASET INTO TRAIN AND TEST TRAIN = 70% TEST = 30%
+
+# Load necessary library
+library(caret)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Determine the proportion of data to be used for training (e.g., 70%)
+train_percentage <- 0.7
+
+# Calculate the number of rows for training
+train_size <- round(train_percentage * nrow(data))
+
+# Create indices for training and testing sets
+train_indices <- sample(seq_len(nrow(data)), size = train_size)
+
+# Split the dataset into training and testing sets
+train_data <- data[train_indices, ]
+test_data <- data[-train_indices, ]
+
+# Print the dimensions of the training and testing sets
+cat("Training set size:", nrow(train_data), "\n")
+cat("Testing set size:", nrow(test_data), "\n")
+
+##  MODELING
+
+# LINEAR REGRESSION
+# Train the linear regression model
+lm_model <- lm(fraud ~ ., data = train_data)
+
+# Make predictions on the testing set
+predictions <- predict(lm_model, newdata = test_data)
+
+# Evaluate the model
+# For regression, you can use metrics like RMSE (Root Mean Squared Error) or MAE (Mean Absolute Error)
+rmse <- sqrt(mean((test_data$fraud - predictions)^2))
+mae <- mean(abs(test_data$fraud - predictions))
+
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+
+# Optionally, you can also plot the actual vs. predicted values
+plot(test_data$fraud, predictions, main = "Actual vs. Predicted Values", xlab = "Actual", ylab = "Predicted")
+abline(0, 1, col = "red")  # Add a diagonal line for reference
+
+# Define a threshold for accuracy calculation
+threshold <- 0.1  # Define a threshold within which predictions are considered accurate
+
+# Compute accuracy-like measure
+Linear_regression_accuracy <- mean(abs(test_data$fraud - predictions) <= threshold) 
+
+cat("Accuracy (within threshold ", threshold, "): ", Linear_regression_accuracy, "%\n")
+
+
+# DECISION TREE
+# Load necessary library
+library(rpart)
+
+# Train the decision tree model
+dt_model <- rpart(fraud ~ ., data = train_data, method = "class")
+
+# Make predictions on the testing set
+dt_predictions <- predict(dt_model, newdata = test_data, type = "class")
+
+# Evaluate the model
+# For classification, you can use metrics like accuracy, confusion matrix, etc.
+dt_accuracy <- mean(dt_predictions == test_data$fraud)
+
+cat("Decision Tree Accuracy:", dt_accuracy, "\n")
+
+# Optionally, you can also print the confusion matrix
+confusion_matrix <- table(Actual = test_data$fraud, Predicted = dt_predictions)
+print(confusion_matrix)
+
+# Optionally, you can also plot the decision tree
+plot(dt_model)
+text(dt_model)
+
+# SVM 
+# Load necessary library
+library(e1071)
+
+# Convert the 'fraud' variable to a factor
+train_data$fraud <- as.factor(train_data$fraud)
+test_data$fraud <- as.factor(test_data$fraud)
+
+# Train the SVM model
+svm_model <- svm(fraud ~ ., data = train_data, kernel = "radial")
+
+# Make predictions on the testing set
+svm_predictions <- predict(svm_model, newdata = test_data)
+
+# Calculate accuracy
+svm_accuracy <- mean(svm_predictions == test_data$fraud)
+
+cat("SVM Accuracy:", svm_accuracy, "\n")
+
+
+
+# NAIVE BAYES
+
+# Load necessary library
+library(e1071)
+
+# Train the Naive Bayes model
+nb_model <- naiveBayes(fraud ~ ., data = train_data)
+
+# Make predictions on the testing set
+nb_predictions <- predict(nb_model, newdata = test_data)
+
+# Calculate accuracy
+nb_accuracy <- mean(nb_predictions == test_data$fraud)
+
+cat("Naive Bayes Accuracy:", nb_accuracy, "\n")
+
+
+# J48
+
+# Load necessary library
+# Load necessary library
+library(rpart)
+
+# Convert the 'fraud' variable to a factor
+train_data$fraud <- as.factor(train_data$fraud)
+test_data$fraud <- as.factor(test_data$fraud)
+
+# Train the J48 model
+j48_model <- rpart(fraud ~ ., data = train_data, method = "class")
+
+# Make predictions on the testing set
+j48_predictions <- predict(j48_model, newdata = test_data, type = "class")
+
+# Calculate accuracy
+j48_accuracy <- mean(j48_predictions == test_data$fraud)
+
+cat("J48 Accuracy:", j48_accuracy, "\n")
+
+
+
+# KNN
+# Load necessary library
+library(class)
+
+# Convert the 'fraud' variable to a factor
+train_data$fraud <- as.factor(train_data$fraud)
+test_data$fraud <- as.factor(test_data$fraud)
+
+# Train the KNN model
+knn_model <- knn(train = train_data[, -which(names(train_data) == "fraud")], 
+                 test = test_data[, -which(names(test_data) == "fraud")],
+                 cl = train_data$fraud, 
+                 k = 5)  # You can adjust the value of k as needed
+
+# Calculate accuracy
+knn_accuracy <- mean(knn_model == test_data$fraud)
+
+cat("KNN Accuracy:", knn_accuracy, "\n")
+
+
+
+# Accuracy of all the model in percentage are as follows
+
+cat("Linear Regression Accuracy",Linear_regression_accuracy*100,"\n")
+cat("Naive Bayes Accuracy:", nb_accuracy*100, "\n")
+cat("J48 Accuracy:", j48_accuracy*100, "\n")
+cat("KNN Accuracy:",knn_accuracy*100,"\n")
+cat("SVM Accuracy:", svm_accuracy*100, "\n")
+
+# Sample accuracy scores for different groups
+accuracy_scores <- c(Linear_regression_accuracy, nb_accuracy, j48_accuracy, knn_accuracy,svm_accuracy)
+group_names <- c("Linear Regression", "NAIVE BAYES", "J48", "KNN","SVM")
+
+# Plotting the pie chart
+pie(accuracy_scores, labels = group_names, main = "Accuracy by Group")
+
+cat("Among all the model SVM has highest accuracy")
+
+
+
+
+```
